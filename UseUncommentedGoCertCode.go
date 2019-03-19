@@ -8,11 +8,13 @@ import (
 	"syscall"
 	"unicode/utf16"
 	"unsafe"
+
+	"golang.org/x/sys/windows"
 )
 
 func main() {
 	fmt.Println("hello world")
-	certPool, err := loadSamSystemRoots()
+	certPool, err := loadTheSystemCerts()
 	if err != nil {
 		fmt.Println("error reading cert store")
 	}
@@ -30,7 +32,7 @@ func wide(s string) *uint16 {
 }
 
 // loadSamSystemRoots does stuff
-func loadSamSystemRoots() (*x509.CertPool, error) {
+func loadTheSystemCerts() (*x509.CertPool, error) {
 	// TODO: restore this functionality on Windows. We tried to do
 	// it in Go 1.8 but had to revert it. See Issue 18609.
 	// Returning (nil, nil) was the old behavior, prior to CL 30578.
@@ -55,18 +57,20 @@ func loadSamSystemRoots() (*x509.CertPool, error) {
 	//store, err := syscall.CertOpenSystemStore(0, syscall.StringToUTF16Ptr("ROOT")) // Root CAs
 	//store, err := syscall.CertOpenSystemStore(0, syscall.StringToUTF16Ptr("CA")) // Intermediate CAs
 	// THIS IS PULLING FROM THE CurrentUser MY cert store https://docs.microsoft.com/en-us/windows/desktop/api/wincrypt/nf-wincrypt-certopensystemstorew
-	store, err := syscall.CertOpenSystemStore(0, syscall.StringToUTF16Ptr("MY")) // Personal Certificates
+	//store, err := syscall.CertOpenSystemStore(0, syscall.StringToUTF16Ptr("MY")) // Personal Certificates
 	//store, err := syscall.CertOpenSystemStore(0, syscall.StringToUTF16Ptr("DISALLOWED")) // Disallowed Certificates
 	//store, err := syscall.CertOpenSystemStore(0, syscall.StringToUTF16Ptr("AUTHROOT")) // Auth Root Certificates
 	//store, err := syscall.CertOpenSystemStore(0, syscall.StringToUTF16Ptr("ADDRESSBOOK")) // AddressBook Certificates
 	//store, err := syscall.CertOpenSystemStore(0, syscall.StringToUTF16Ptr("TRUSTEDPEOPLE")) // Trusted People Certificates
 	//store, err := syscall.CertOpenSystemStore(0, syscall.StringToUTF16Ptr("TRUSTEDPUBLISHER")) // Trusted Publisher Certificates
-	// store, err := syscall.CertOpenStore(
-	// 	windows.CERT_STORE_PROV_SYSTEM, //CERT_STORE_PROV_SYSTEM_W
-	// 	0,
-	// 	0,
-	// 	windows.CERT_SYSTEM_STORE_CURRENT_USER, //CERT_SYSTEM_STORE_LOCAL_MACHINE
-	// 	uintptr(unsafe.Pointer(my))) // uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr("MY"))))
+	// YOU MUST RUN AS ADMINSTRATOR OTHERWISE THIS WILL SILENTLY FAIL!!!
+	store, err := syscall.CertOpenStore(
+		windows.CERT_STORE_PROV_SYSTEM, //CERT_STORE_PROV_SYSTEM_W
+		0,
+		0,
+		windows.CERT_SYSTEM_STORE_LOCAL_MACHINE, // CERT_SYSTEM_STORE_CURRENT_USER
+		uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr("MY")))) // uintptr(unsafe.Pointer(my)))
+	err = syscall.GetLastError()
 	if err != nil {
 		return nil, err
 	}
